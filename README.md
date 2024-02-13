@@ -67,7 +67,7 @@ storage_helper.copy_folder_to_local(conn, key, local_folder_path)
 All methods require a connection string parameter.  Connections can be defined as dict or a json string.
 
 ### AWS S3 Example:
-```json
+```python
 {
     "BUCKET_URI": f's3://{bucket}/{prefix}',
     "AWS_ACCESS_KEY_ID": aws_access_key_id,
@@ -76,7 +76,7 @@ All methods require a connection string parameter.  Connections can be defined a
 ```
 
 ### Azure Example:
-```json
+```python
 {
     "BUCKET_URI": f"wasbs://{container_name}@{azure_storage_account}.blob.core.windows.net/{prefix}",
     "AZURE_STORAGE_ACCOUNT": azure_storage_account,
