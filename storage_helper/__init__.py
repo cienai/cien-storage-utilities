@@ -33,6 +33,7 @@ def safe_conn(conn: Union[str, dict]) -> dict:
     else:
         raise Exception('Invalid connection object')
 
+
 def parse_cloud_storage_uri(uri: str) -> (str, str, str):
     """
     Parses a cloud storage uri and returns the bucket, prefix and scheme.
@@ -106,9 +107,8 @@ def safe_uri(job_conn, prefix: str) -> str:
     Returns a safe URI
     """
     bucket_uri = job_conn['BUCKET_URI']
-    if not bucket_uri.endswith('/'):
-        bucket_uri = f"{bucket_uri}/"
-    return f"{bucket_uri}{prefix}"
+    bucket, _, scheme = parse_cloud_storage_uri(bucket_uri)
+    return f"{scheme}://{bucket}/{prefix}"
 
 def list_files(conn: Union[str, dict], prefix: str, return_details: bool=False):
     """
