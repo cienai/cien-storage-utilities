@@ -447,7 +447,8 @@ def copy_file_to_local(conn: Union[str, dict], key: str, local_file_path: str) -
 
     full_uri = safe_uri(conn, key)
     # parse out the bucket and the new prefix  
-    bucket, real_key, _ = parse_cloud_storage_uri(full_uri)    
+    bucket, real_key, _ = parse_cloud_storage_uri(full_uri)
+    print(f"Copying from bucket: {bucket}, key: {real_key} to: {local_file_path}...")
 
     # ensure that the path to local_file_path exists
     local_folder_path = os.path.dirname(local_file_path)
