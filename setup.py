@@ -11,7 +11,7 @@ setup(
         'storage_helper'
     ],
     install_requires=[
-        "boto",
+        "boto3",
         "azure.storage.blob"],
     classifiers=[
         'Development Status :: 1 - Planning',
