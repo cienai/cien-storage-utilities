@@ -166,12 +166,14 @@ def list_files(conn: Union[str, dict], prefix: str, return_details: bool=False):
 
     # clean out any prefix that exists in the bucket_uri
     bucket, replace_prefix, _ = parse_cloud_storage_uri(conn["BUCKET_URI"])
+    res = []
     for file in matching_files:
         # replace the file prefix
         file = file.replace(replace_prefix, "")
         if file.startswith("/"):
             file = file[1:]
-    return matching_files
+        res.append(file)
+    return res
 
 
 def write_file(conn: Union[str, dict], key: str, data) -> None:
