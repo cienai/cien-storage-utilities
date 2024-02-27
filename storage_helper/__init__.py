@@ -155,75 +155,86 @@ def safe_uri(job_conn, prefix: str) -> str:
     return f"{bucket_uri}{prefix}"
 
 
+def cleanout_prefix(conn, key):
+    conn = safe_conn(conn)
+    storage_type = get_storage_client_type(conn)
+    bucket_uri = conn['BUCKET_URI']
+    _, replace_prefix, _ = parse_cloud_storage_uri(bucket_uri)
+    storage_type = get_storage_client_type(conn)
+    if storage_type == 'azure':
+        # get the container name from the url
+        _, container_name, _ = parse_wasb_url(bucket_uri)
+        if replace_prefix.startswith(container_name):
+            replace_prefix = replace_prefix[len(container_name):]
+
+    if replace_prefix.startswith("/"):
+        replace_prefix = replace_prefix[1:]
+    if not replace_prefix.endswith("/"):
+        replace_prefix = replace_prefix + "/"
+    key = key.replace(replace_prefix, "")
+    if key is not None and key.startswith("/"):
+        key = key[1:]
+    return key
+
+
 def list_files(conn: Union[str, dict], prefix: str, return_details: bool = False):
     """
     Returns a list of files in bucket matching the prefix
     """
     conn = safe_conn(conn)
     storage_client = get_storage_client(conn)
-    try:
-        # get the storage type (one of azure, aws, google)
-        storage_type = get_storage_client_type(conn)
-        # append the prefix to the bucket_uri
-        full_uri = safe_uri(conn, prefix)
-        # handle the aws case
-        if storage_type == 'aws':
-            bucket, real_prefix, _ = parse_cloud_storage_uri(full_uri)
-            print(f'[storage_helper.list_files(aws)] bucket: {bucket}, real_prefix: {real_prefix}')
-            response = storage_client.list_objects_v2(Bucket=bucket, Prefix=real_prefix)
-            if 'Contents' in response:
-                if not return_details:
-                    matching_files = [obj['Key'] for obj in response['Contents']]
-                else:
-                    matching_files = [{
-                        'key': obj['Key'],
-                        'size': obj['Size'],
-                        'created_on': obj['LastModified'],
-                        'last_modified': obj['LastModified'],
-                    } for obj in response['Contents']]
-            else:
-                matching_files = []
-        # handle the azure case
-        elif storage_type == 'azure':
-            storage_account_name, container_name, real_prefix = parse_wasb_url(full_uri)
-            print(f'[storage_helper.list_files(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_prefix: {real_prefix}')
-            container_client = storage_client.get_container_client(container_name)
-            blob_list = container_client.list_blobs(name_starts_with=real_prefix)
+    # get the storage type (one of azure, aws, google)
+    storage_type = get_storage_client_type(conn)
+    # append the prefix to the bucket_uri
+    full_uri = safe_uri(conn, prefix)
+    # handle the aws case
+    if storage_type == 'aws':
+        bucket, real_prefix, _ = parse_cloud_storage_uri(full_uri)
+        print(f'[storage_helper.list_files(aws)] bucket: {bucket}, real_prefix: {real_prefix}')
+        response = storage_client.list_objects_v2(Bucket=bucket, Prefix=real_prefix)
+        if 'Contents' in response:
             if not return_details:
-                matching_files = [blob.name for blob in blob_list]
+                matching_files = [obj['Key'] for obj in response['Contents']]
             else:
                 matching_files = [{
-                    'key': blob.name,
-                    'size': blob.size,
-                    'created_on': blob.creation_time,
-                    'last_modified': blob.last_modified,
-                } for blob in blob_list]
-        # handle the google case (not implemented yet)
+                    'key': obj['Key'],
+                    'size': obj['Size'],
+                    'created_on': obj['LastModified'],
+                    'last_modified': obj['LastModified'],
+                } for obj in response['Contents']]
         else:
-            raise Exception('Unknown storage client')
-    except Exception as e:
-        print(f"[storage_helper.list_files] {str(e)}")
-        matching_files = []
-    finally:
-        storage_client = None
+            matching_files = []
+    # handle the azure case
+    elif storage_type == 'azure':
+        storage_account_name, container_name, real_prefix = parse_wasb_url(full_uri)
+        print(f'[storage_helper.list_files(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_prefix: {real_prefix}')
+        container_client = storage_client.get_container_client(container_name)
+        blob_list = container_client.list_blobs(name_starts_with=real_prefix)
+        if not return_details:
+            matching_files = [blob.name for blob in blob_list]
+        else:
+            matching_files = [{
+                'key': blob.name,
+                'size': blob.size,
+                'created_on': blob.creation_time,
+                'last_modified': blob.last_modified,
+            } for blob in blob_list]
+    # handle the google case (not implemented yet)
+    else:
+        raise Exception('Unknown storage client')
 
     # clean out any prefix that exists in the bucket_uri
     res = []
-    bucket, replace_prefix, _ = parse_cloud_storage_uri(conn["BUCKET_URI"])
     if return_details:
         for obj in matching_files:
-            # replace the file prefix
-            obj['key'] = obj['key'].replace(replace_prefix, "")
-            if obj['key'].startswith("/"):
-                obj['key'] = obj['key'][1:]
-            res.append(obj)
+            obj['key'] = cleanout_prefix(conn, obj['key'])
+            if obj['key'] != prefix:
+                res.append(obj)
     else:
         for file in matching_files:
-            # replace the file prefix
-            file = file.replace(replace_prefix, "")
-            if file.startswith("/"):
-                file = file[1:]
-            res.append(file)
+            file = cleanout_prefix(conn, file)
+            if file != prefix:
+                res.append(file)
     return res
 
 
@@ -363,7 +374,7 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
             for blob in blob_list:
                 container_client.get_blob_client(blob.name).delete_blob()
             # make sure the folder is also deleted
-            folder_name = folder_to_delete.rstrip('/')
+            folder_name = real_key.rstrip('/')
             container_client.get_blob_client(folder_name).delete_blob()
         # handle the google case (not implemented yet)
         else:
@@ -455,8 +466,9 @@ def rename_folder(conn: Union[str, dict], old_folder_key: str, new_folder_key: s
         # handle the azure case
         elif storage_type == 'azure':
             storage_account_name, container_name, real_old_key = parse_wasb_url(full_old_uri)
-            storage_account_name, container_name, real_new_key = parse_wasb_url(full_new_uri)
-            print(f'[storage_helper.rename_folder(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
+            storage_account_name, container_name, real_new_key = parse_wasb_url(full_new_uri)            
+            print(f'[storage_helper.rename_folder(azure)] storage_account_name: {storage_account_name}, '
+                  f'container_name: {container_name}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
             container_client = storage_client.get_container_client(container_name)
             # List blobs with the specified prefix
             blob_list = container_client.walk_blobs(name_starts_with=old_folder_key)
