@@ -74,7 +74,8 @@ def parse_wasb_url(wasb_url):
         container_name = components[1]
     path_and_filename = "/".join(components[2:])
 
-    return account_name, container_name, path_and_filename
+    clean_storage_account_name = account_name.replace(".blob.core.windows.net", "")
+    return clean_storage_account_name, container_name, path_and_filename
 
 
 def get_storage_client(conn: Union[str, dict]):
