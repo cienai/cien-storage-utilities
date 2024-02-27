@@ -62,6 +62,7 @@ def parse_wasb_url(wasb_url):
     """
     # Remove "wasb://" prefix
     url_without_prefix = wasb_url.replace("wasb://", "")
+    url_without_prefix = wasb_url.replace("wasbs://", "")
     # Split the URL by "/"
     components = url_without_prefix.split("/")
     # Extract account name, container name, and path/filename
