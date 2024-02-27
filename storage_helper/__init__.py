@@ -201,7 +201,7 @@ def list_files(conn: Union[str, dict], prefix: str, return_details: bool = False
         else:
             raise Exception('Unknown storage client')
     except Exception as e:
-        print(f"[storage_helper] Error listing files in '{bucket}/{prefix}': {str(e)}")
+        print(f"[storage_helper.list_files] {str(e)}")
         matching_files = []
     finally:
         storage_client = None
