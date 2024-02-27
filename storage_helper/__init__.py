@@ -379,8 +379,9 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
         # handle the google case (not implemented yet)
         else:
             raise Exception('Unknown storage client')
-    except Exception as e:
-        print(f"Error deleting folder '{folder_to_delete}': {str(e)}")
+    except Exception:
+        # print(f"Error deleting folder '{folder_to_delete}': {str(e)}")
+        pass
     finally:
         storage_client = None
 
@@ -430,61 +431,27 @@ def rename_file(conn: Union[str, dict], old_file_key: str, new_file_key: str) ->
 
 def rename_folder(conn: Union[str, dict], old_folder_key: str, new_folder_key: str) -> None:
     """
-    Renames a folder in an S3 bucket
+    Renames a folder in cloud storage
     """
+    conn = safe_conn(conn)
+    if old_folder_key.endswith('/'):
+        old_folder_key = old_folder_key[:1]
+    if new_folder_key.endswith('/'):
+        new_folder_key = new_folder_key[:1]
+    # delete the new folder if it exists
     try:
-        conn = safe_conn(conn)
-        if not old_folder_key.endswith('/'):
-            old_folder_key = old_folder_key + '/'
-        if not new_folder_key.endswith('/'):
-            new_folder_key = new_folder_key + '/'
-        print(f"Renaming folder {old_folder_key} to {new_folder_key}")
-        # delete the new folder if it exists
-        try:
-            delete_folder(conn, new_folder_key)
-        except Exception:
-            pass
+        delete_folder(conn, new_folder_key)
+    except Exception:
+        pass
 
-        storage_client = get_storage_client(conn)
-
-        full_old_uri = safe_uri(conn, old_folder_key)
-        full_new_uri = safe_uri(conn, new_folder_key)
-
-        storage_type = get_storage_client_type(conn)
-        # handle the aws case
-        if storage_type == 'aws':
-            bucket, real_old_key, _ = parse_cloud_storage_uri(full_old_uri)
-            bucket, real_new_key, _ = parse_cloud_storage_uri(full_new_uri)
-            # print(f'[storage_helper.rename_folder(aws)] bucket: {bucket}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
-            objects_to_copy = storage_client.list_objects_v2(Bucket=bucket, Prefix=real_old_key)
-            if 'Contents' in objects_to_copy:
-                for obj in objects_to_copy['Contents']:
-                    old_obj_key = obj['Key']
-                    new_obj_key = old_obj_key.replace(real_old_key, real_new_key)
-                    storage_client.copy_object(Bucket=bucket, CopySource={'Bucket': bucket, 'Key': old_obj_key}, Key=new_obj_key)
-            delete_folder(conn, old_folder_key)
-        # handle the azure case
-        elif storage_type == 'azure':
-            _, container_name, real_old_key = parse_wasb_url(full_old_uri)
-            _, container_name, real_new_key = parse_wasb_url(full_new_uri)            
-            # print(f'[storage_helper.rename_folder(azure)] storage_account_name: {storage_account_name}, '
-            #       f'container_name: {container_name}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
-            container_client = storage_client.get_container_client(container_name)
-            # List blobs with the specified prefix
-            blob_list = container_client.walk_blobs(name_starts_with=old_folder_key)
-            for blob in blob_list:
-                old_blob_key = blob.name
-                new_blob_key = old_blob_key.replace(old_folder_key, real_new_key)
-                source_blob = container_client.get_blob_client(old_blob_key)
-                dest_blob = container_client.get_blob_client(new_blob_key)
-                dest_blob.start_copy_from_url(source_blob.url)
-                while dest_blob.get_blob_properties().copy.status == 'pending':
-                    time.sleep(0.1)
-            delete_folder(conn, old_folder_key)
-    except Exception as e:
-        print(f"Error renaming folder '{old_folder_key}' to '{new_folder_key}': {str(e)}")
-    finally:
-        storage_client = None
+    # list all the files in the old folder
+    files = list_files(conn, old_folder_key)
+    for file in files:
+        # rename each file in the old folder to the new folder
+        new_key = new_folder_key + file[len(old_folder_key):]
+        rename_file(conn, file, new_key)
+    # delete the old folder
+    delete_folder(conn, old_folder_key)
 
 
 def check_if_file_exists(conn: Union[str, dict], key: str) -> bool:
@@ -664,7 +631,7 @@ def copy_folder_from_local(conn: Union[str, dict], local_folder_path: str, folde
                 if len(file) > 0:
                     local_file_path = os.path.join(root, file)
                     key = f"{real_folder_key}{file}"
-                    print(f"file: {file}, key: {key}")
+                    # print(f"file: {file}, key: {key}")
                     blob_client = container_client.get_blob_client(key)
                     with open(local_file_path, "rb") as data:
                         blob_client.upload_blob(data, overwrite=True)
