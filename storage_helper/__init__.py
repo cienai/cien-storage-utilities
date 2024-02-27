@@ -190,7 +190,7 @@ def list_files(conn: Union[str, dict], prefix: str, return_details: bool = False
     # handle the aws case
     if storage_type == 'aws':
         bucket, real_prefix, _ = parse_cloud_storage_uri(full_uri)
-        print(f'[storage_helper.list_files(aws)] bucket: {bucket}, real_prefix: {real_prefix}')
+        # print(f'[storage_helper.list_files(aws)] bucket: {bucket}, real_prefix: {real_prefix}')
         response = storage_client.list_objects_v2(Bucket=bucket, Prefix=real_prefix)
         if 'Contents' in response:
             if not return_details:
@@ -206,8 +206,8 @@ def list_files(conn: Union[str, dict], prefix: str, return_details: bool = False
             matching_files = []
     # handle the azure case
     elif storage_type == 'azure':
-        storage_account_name, container_name, real_prefix = parse_wasb_url(full_uri)
-        print(f'[storage_helper.list_files(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_prefix: {real_prefix}')
+        _, container_name, real_prefix = parse_wasb_url(full_uri)
+        # print(f'[storage_helper.list_files(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_prefix: {real_prefix}')
         container_client = storage_client.get_container_client(container_name)
         blob_list = container_client.list_blobs(name_starts_with=real_prefix)
         if not return_details:
@@ -251,12 +251,12 @@ def write_file(conn: Union[str, dict], key: str, data) -> None:
         if storage_type == 'aws':
             # parse out the bucket and the new prefix
             bucket, real_key, _ = parse_cloud_storage_uri(full_uri)
-            print(f'[storage_helper.write_file(aws)] bucket: {bucket}, real_key: {real_key}')
+            # print(f'[storage_helper.write_file(aws)] bucket: {bucket}, real_key: {real_key}')
             storage_client.put_object(Bucket=bucket, Key=real_key, Body=data)
         # handle the azure case
         elif storage_type == 'azure':
-            storage_account_name, container_name, real_key = parse_wasb_url(full_uri)
-            print(f'[storage_helper.write_file(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
+            _, container_name, real_key = parse_wasb_url(full_uri)
+            # print(f'[storage_helper.write_file(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
             container_client = storage_client.get_container_client(container_name)
             blob_client = container_client.get_blob_client(real_key)
             blob_client.upload_blob(data, overwrite=True)
@@ -281,7 +281,7 @@ def read_file(conn: Union[str, dict], key: str) -> Union[str, bytes]:
         # handle the aws case
         if storage_type == 'aws':
             bucket, real_key, _ = parse_cloud_storage_uri(full_uri)
-            print(f'[storage_helper.read_file(aws)] bucket: {bucket}, real_key: {real_key}')
+            # print(f'[storage_helper.read_file(aws)] bucket: {bucket}, real_key: {real_key}')
             response = storage_client.get_object(Bucket=bucket, Key=real_key)
             body = response['Body']
             data = body.read()
@@ -291,8 +291,8 @@ def read_file(conn: Union[str, dict], key: str) -> Union[str, bytes]:
             return data
         # handle the azure case
         elif storage_type == 'azure':
-            storage_account_name, container_name, real_key = parse_wasb_url(full_uri)
-            print(f'[storage_helper.read_file(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
+            _, container_name, real_key = parse_wasb_url(full_uri)
+            # print(f'[storage_helper.read_file(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
             container_client = storage_client.get_container_client(container_name)
             blob_client = container_client.get_blob_client(real_key)
             data = blob_client.download_blob().readall()
@@ -322,12 +322,12 @@ def delete_file(conn: Union[str, dict], key: str) -> None:
         # handle the aws case
         if storage_type == 'aws':
             bucket, real_key, _ = parse_cloud_storage_uri(full_uri)
-            print(f'[storage_helper.delete_file(aws)] bucket: {bucket}, real_key: {real_key}')
+            # print(f'[storage_helper.delete_file(aws)] bucket: {bucket}, real_key: {real_key}')
             storage_client.delete_object(Bucket=bucket, Key=real_key)
         # handle the azure case
         elif storage_type == 'azure':
-            storage_account_name, container_name, real_key = parse_wasb_url(full_uri)
-            print(f'[storage_helper.delete_file(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
+            _, container_name, real_key = parse_wasb_url(full_uri)
+            # print(f'[storage_helper.delete_file(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
             container_client = storage_client.get_container_client(container_name)
             blob_client = container_client.get_blob_client(real_key)
             blob_client.delete_blob()
@@ -356,7 +356,7 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
         # handle the aws case
         if storage_type == 'aws':
             bucket, real_folder_to_delete, _ = parse_cloud_storage_uri(full_uri)
-            print(f'[storage_helper.delete_folder(aws)] bucket: {bucket}, real_folder_to_delete: {real_folder_to_delete}')
+            # print(f'[storage_helper.delete_folder(aws)] bucket: {bucket}, real_folder_to_delete: {real_folder_to_delete}')
             objects_to_delete = storage_client.list_objects_v2(Bucket=bucket, Prefix=real_folder_to_delete)
             if 'Contents' in objects_to_delete:
                 for obj in objects_to_delete['Contents']:
@@ -364,8 +364,8 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
             storage_client.delete_object(Bucket=bucket, Key=real_folder_to_delete)
         # handle the azure case
         elif storage_type == 'azure':
-            storage_account_name, container_name, real_key = parse_wasb_url(full_uri)
-            print(f'[storage_helper.delete_folder(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
+            _, container_name, real_key = parse_wasb_url(full_uri)
+            # print(f'[storage_helper.delete_folder(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
             container_client = storage_client.get_container_client(container_name)
             # List blobs with the specified prefix
             blob_list = container_client.walk_blobs(name_starts_with=real_key)
@@ -402,14 +402,14 @@ def rename_file(conn: Union[str, dict], old_file_key: str, new_file_key: str) ->
         if storage_type == 'aws':
             bucket, real_old_key, _ = parse_cloud_storage_uri(full_old_uri)
             bucket, real_new_key, _ = parse_cloud_storage_uri(full_new_uri)
-            print(f'[storage_helper.rename_file(aws)] bucket: {bucket}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
+            # print(f'[storage_helper.rename_file(aws)] bucket: {bucket}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
             storage_client.copy_object(Bucket=bucket, CopySource={'Bucket': bucket,  'Key': real_old_key}, Key=real_new_key)
             delete_file(conn, old_file_key)
         # handle the azure case
         elif storage_type == 'azure':
-            storage_account_name, container_name, real_old_key = parse_wasb_url(full_old_uri)
-            storage_account_name, container_name, real_new_key = parse_wasb_url(full_new_uri)
-            print(f'[storage_helper.rename_file(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
+            _, container_name, real_old_key = parse_wasb_url(full_old_uri)
+            _, container_name, real_new_key = parse_wasb_url(full_new_uri)
+            # print(f'[storage_helper.rename_file(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
             container_client = storage_client.get_container_client(container_name)
             source_blob = container_client.get_blob_client(real_old_key)
             dest_blob = container_client.get_blob_client(real_new_key)
@@ -455,7 +455,7 @@ def rename_folder(conn: Union[str, dict], old_folder_key: str, new_folder_key: s
         if storage_type == 'aws':
             bucket, real_old_key, _ = parse_cloud_storage_uri(full_old_uri)
             bucket, real_new_key, _ = parse_cloud_storage_uri(full_new_uri)
-            print(f'[storage_helper.rename_folder(aws)] bucket: {bucket}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
+            # print(f'[storage_helper.rename_folder(aws)] bucket: {bucket}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
             objects_to_copy = storage_client.list_objects_v2(Bucket=bucket, Prefix=real_old_key)
             if 'Contents' in objects_to_copy:
                 for obj in objects_to_copy['Contents']:
@@ -465,10 +465,10 @@ def rename_folder(conn: Union[str, dict], old_folder_key: str, new_folder_key: s
             delete_folder(conn, old_folder_key)
         # handle the azure case
         elif storage_type == 'azure':
-            storage_account_name, container_name, real_old_key = parse_wasb_url(full_old_uri)
-            storage_account_name, container_name, real_new_key = parse_wasb_url(full_new_uri)            
-            print(f'[storage_helper.rename_folder(azure)] storage_account_name: {storage_account_name}, '
-                  f'container_name: {container_name}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
+            _, container_name, real_old_key = parse_wasb_url(full_old_uri)
+            _, container_name, real_new_key = parse_wasb_url(full_new_uri)            
+            # print(f'[storage_helper.rename_folder(azure)] storage_account_name: {storage_account_name}, '
+            #       f'container_name: {container_name}, real_old_key: {real_old_key}, real_new_key: {real_new_key}')
             container_client = storage_client.get_container_client(container_name)
             # List blobs with the specified prefix
             blob_list = container_client.walk_blobs(name_starts_with=old_folder_key)
@@ -499,7 +499,7 @@ def check_if_file_exists(conn: Union[str, dict], key: str) -> bool:
         try:
             # parse out the bucket and the new prefix
             bucket, real_key, _ = parse_cloud_storage_uri(full_uri)
-            print(f'[storage_helper.check_if_file_exists(aws)] bucket: {bucket}, real_key: {real_key}')
+            # print(f'[storage_helper.check_if_file_exists(aws)] bucket: {bucket}, real_key: {real_key}')
             # Attempt to head the object (check if it exists)
             storage_client.head_object(Bucket=bucket, Key=real_key)
             return True  # The object exists
@@ -507,7 +507,7 @@ def check_if_file_exists(conn: Union[str, dict], key: str) -> bool:
             return False
     # handle the azure case
     elif storage_type == 'azure':
-        storage_account_name, container_name, real_key = parse_wasb_url(full_uri)
+        _, container_name, real_key = parse_wasb_url(full_uri)
         container_client = storage_client.get_container_client(container_name)
         blob_client = container_client.get_blob_client(real_key)
         return blob_client.exists()  # The object exists
@@ -531,12 +531,12 @@ def copy_file_to_local(conn: Union[str, dict], key: str, local_file_path: str) -
     # handle the aws case
     if storage_type == 'aws':
         bucket, real_key, _ = parse_cloud_storage_uri(full_uri)
-        print(f'[storage_helper.copy_file_to_local(aws)] bucket: {bucket}, real_key: {real_key}')
+        # print(f'[storage_helper.copy_file_to_local(aws)] bucket: {bucket}, real_key: {real_key}')
         storage_client.download_file(bucket, real_key, local_file_path)
     # handle the azure case
     elif storage_type == 'azure':
-        storage_account_name, container_name, real_key = parse_wasb_url(full_uri)
-        print(f'[storage_helper.copy_file_to_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
+        _, container_name, real_key = parse_wasb_url(full_uri)
+        # print(f'[storage_helper.copy_file_to_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
         container_client = storage_client.get_container_client(container_name)
         blob_client = container_client.get_blob_client(real_key)
         with open(local_file_path, "wb") as my_blob:
@@ -558,12 +558,12 @@ def copy_file_from_local(conn: Union[str, dict], local_file_path: str, key: str)
     # handle the aws case
     if storage_type == 'aws':
         bucket, real_key, _ = parse_cloud_storage_uri(full_uri)
-        print(f'[storage_helper.copy_file_from_local(aws)] bucket: {bucket}, real_key: {real_key}')
+        # print(f'[storage_helper.copy_file_from_local(aws)] bucket: {bucket}, real_key: {real_key}')
         storage_client.upload_file(local_file_path, bucket, real_key)
     # handle the azure case
     elif storage_type == 'azure':
-        storage_account_name, container_name, real_key = parse_wasb_url(full_uri)
-        print(f'[storage_helper.copy_file_from_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
+        _, container_name, real_key = parse_wasb_url(full_uri)
+        # print(f'[storage_helper.copy_file_from_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
         container_client = storage_client.get_container_client(container_name)
         blob_client = container_client.get_blob_client(real_key)
         with open(local_file_path, "rb") as data:
@@ -595,7 +595,7 @@ def copy_folder_to_local(conn: Union[str, dict], folder_key: str, local_folder_p
         # ensure that folder_key ends with a '/'
         if not real_folder_key.endswith('/'):
             real_folder_key = real_folder_key + '/'
-        print(f'[storage_helper.copy_folder_to_local(aws)] bucket: {bucket}, real_folder_key: {real_folder_key}')
+        # print(f'[storage_helper.copy_folder_to_local(aws)] bucket: {bucket}, real_folder_key: {real_folder_key}')
         objects_to_copy = storage_client.list_objects_v2(Bucket=bucket, Prefix=real_folder_key)
         if 'Contents' in objects_to_copy:
             for obj in objects_to_copy['Contents']:
@@ -605,11 +605,11 @@ def copy_folder_to_local(conn: Union[str, dict], folder_key: str, local_folder_p
                 storage_client.download_file(bucket, obj_key, local_file_path)
     # handle the azure case
     elif storage_type == 'azure':
-        storage_account_name, container_name, real_folder_key = parse_wasb_url(full_uri)
+        _, container_name, real_folder_key = parse_wasb_url(full_uri)
         # ensure that folder_key ends with a '/'
         if not real_folder_key.endswith('/'):
             real_folder_key = real_folder_key + '/'
-        print(f'[storage_helper.copy_folder_to_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
+        # print(f'[storage_helper.copy_folder_to_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
         container_client = storage_client.get_container_client(container_name)
         blob_list = container_client.walk_blobs(name_starts_with=real_folder_key)
         for blob in blob_list:
@@ -645,7 +645,7 @@ def copy_folder_from_local(conn: Union[str, dict], local_folder_path: str, folde
         # ensure that folder_key ends with a '/'
         if not real_folder_key.endswith('/'):
             real_folder_key = real_folder_key + '/'
-        print(f'[storage_helper.copy_folder_from_local(aws)] bucket: {bucket}, real_folder_key: {real_folder_key}')
+        # print(f'[storage_helper.copy_folder_from_local(aws)] bucket: {bucket}, real_folder_key: {real_folder_key}')
         for root, dirs, files in os.walk(local_folder_path):
             for file in files:
                 local_file_path = os.path.join(root, file)
@@ -653,11 +653,11 @@ def copy_folder_from_local(conn: Union[str, dict], local_folder_path: str, folde
                 storage_client.upload_file(local_file_path, bucket, key)
     # handle the azure case
     elif storage_type == 'azure':
-        storage_account_name, container_name, real_folder_key = parse_wasb_url(full_uri)
+        _, container_name, real_folder_key = parse_wasb_url(full_uri)
         # ensure that folder_key ends with a '/'
         if not real_folder_key.endswith('/'):
             real_folder_key = real_folder_key + '/'
-        print(f'[storage_helper.copy_folder_from_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
+        # print(f'[storage_helper.copy_folder_from_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
         container_client = storage_client.get_container_client(container_name)
         for root, dirs, files in os.walk(local_folder_path):
             for file in files:
