@@ -18,8 +18,13 @@ import storage_helper
 
 # define a connection (see section on Connectoins for more information)
 conn = {
+    "BUCKET_URI": f"wasbs://{azure_storage_account}.blob.core.windows.net/{container_name}/{prefix}",
+    "AZURE_STORAGE_ACCESS_KEY": azure_access_key
+}
+
+# another format for was strings are as follows
+conn = {
     "BUCKET_URI": f"wasbs://{container_name}@{azure_storage_account}.blob.core.windows.net/{prefix}",
-    "AZURE_STORAGE_ACCOUNT": azure_storage_account,
     "AZURE_STORAGE_ACCESS_KEY": azure_access_key
 }
 
