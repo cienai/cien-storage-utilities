@@ -70,9 +70,14 @@ def parse_wasb_url(wasb_url):
         # URL format: wasb//{container_name}@{account_name}.blob.core.windows.net/{path_and_filename}
         container_name, account_name = components[0].split("@")
     else:
-        # URL format: wasb//{account_name}.blob.core.windows.net/{container_name}/{path_and_filename}
-        account_name = components[0].split(".")[0]
-        container_name = components[1]
+        if len(components) == 1:
+            # container is not specified
+            account_name = components[0]
+            container_name = ""
+        else:
+            # URL format: wasb//{account_name}.blob.core.windows.net/{container_name}/{path_and_filename}
+            account_name = components[0].split(".")[0]
+            container_name = components[1]
     path_and_filename = "/".join(components[2:])
 
     clean_storage_account_name = account_name.replace(".blob.core.windows.net", "")
