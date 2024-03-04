@@ -237,7 +237,7 @@ def list_files(conn: Union[str, dict], prefix: str, return_details: bool = False
                 res.append(obj)
     else:
         for file in matching_files:
-            file = cleanout_prefix(conn, file)
+            # file = cleanout_prefix(conn, file)
             if file != prefix:
                 res.append(file)
     return res
