@@ -176,7 +176,11 @@ def cleanout_prefix(conn, key):
         replace_prefix = replace_prefix[1:]
     if not replace_prefix.endswith("/"):
         replace_prefix = replace_prefix + "/"
-    key = key.replace(replace_prefix, "")
+
+    # remove the replace_prefix from the key
+    if key.startswith(replace_prefix):
+        key = key[len(replace_prefix):]
+
     if key is not None and key.startswith("/"):
         key = key[1:]
     return key
