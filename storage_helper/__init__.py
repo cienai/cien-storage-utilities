@@ -101,7 +101,12 @@ def get_storage_client(conn: Union[str, dict]):
     if scheme == 'gs':
         raise Exception('Google Cloud Storage not supported')
     if scheme == 'wasbs':
-        account_key = conn['AZURE_STORAGE_ACCESS_KEY']
+        # check if conn contains AZURE_STORAGE_ACCESS_KEY
+        account_key = None
+        if 'AZURE_STORAGE_ACCESS_KEY' in conn:
+            account_key = conn['AZURE_STORAGE_ACCESS_KEY']
+        elif 'AZURE_STORAGE_SAS_TOKEN' in conn:
+            account_key = conn['AZURE_STORAGE_SAS_TOKEN']
         account_name, _, _ = parse_wasb_url(uri)
         return BlobServiceClient(
             account_url=f"https://{account_name}.blob.core.windows.net",
