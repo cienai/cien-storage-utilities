@@ -692,7 +692,7 @@ def create_container(conn: Union[str, dict], container_name: str) -> str:
         raise Exception(f'Container "{container_name}" already exists')
 
 
-def generate_container_access_token(conn: Union[str, dict], container_name: str, expiry: datetime = None):
+def generate_container_access_token(conn: Union[str, dict], container_name: str, expiry: datetime = None) -> str:
     """
     Generates SAS token for container_name and optional expiration date. One year from now if "expiry" not provided.
     """
