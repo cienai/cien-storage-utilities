@@ -687,9 +687,10 @@ def create_container(conn: Union[str, dict], container_name: str) -> str:
 
     try:
         storage_client.create_container(container_name)
+        storage_account, _, _ = parse_wasb_url(conn['BUCKET_URI'])
         sas_token = generate_container_access_token(conn, container_name)
         return {
-            'BUCKET_URI': f"wasbs://{conn['BUCKET_URI']}.blob.core.windows.net/{container_name}",
+            'BUCKET_URI': f"wasbs://{storage_account}.blob.core.windows.net/{container_name}",
             'AZURE_STORAGE_SAS_TOKEN': sas_token
         }
     except ResourceExistsError:
