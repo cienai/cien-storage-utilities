@@ -687,7 +687,9 @@ def create_container(conn: Union[str, dict], container_name: str) -> str:
 
     try:
         storage_client.create_container(container_name)
-        storage_account, _, _ = parse_wasb_url(conn['BUCKET_URI'])
+
+        uri = conn['BUCKET_URI']
+        storage_account, _, _ = parse_wasb_url(uri)
         sas_token = generate_container_access_token(conn, container_name)
         return {
             'BUCKET_URI': f"wasbs://{storage_account}.blob.core.windows.net/{container_name}",
