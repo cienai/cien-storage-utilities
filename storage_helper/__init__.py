@@ -383,7 +383,6 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
             folder_to_delete = folder_to_delete + '/'
 
         full_uri = safe_uri(conn, folder_to_delete)
-        # parse out the bucket and the new prefix
 
         storage_type = get_storage_client_type(conn)
         # handle the aws case
@@ -401,18 +400,26 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
             # print(f'[storage_helper.delete_folder(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
             container_client = storage_client.get_container_client(container_name)
             # List blobs with the specified prefix
-            blob_list = container_client.walk_blobs(name_starts_with=real_key)
-
+            blob_list = container_client.list_blobs(name_starts_with=real_key)
             # Delete each blob with the specified prefix
             for blob in blob_list:
-                container_client.get_blob_client(blob.name).delete_blob()
-            # make sure the folder is also deleted
-            folder_name = real_key.rstrip('/')
-            container_client.get_blob_client(folder_name).delete_blob()
+                try:
+                    container_client.delete_blob(blob.name, delete_snapshots='include')
+                except:
+                    pass
+
+            # do the same again to delete empty folders
+            blob_list = container_client.list_blobs(name_starts_with=real_key)
+            for blob in blob_list:
+                try:
+                    container_client.delete_blob(blob.name)
+                except:
+                    pass
+
         # handle the google case (not implemented yet)
         else:
             raise Exception('Unknown storage client')
-    except Exception:
+    except Exception as e:
         # print(f"Error deleting folder '{folder_to_delete}': {str(e)}")
         pass
     finally:
