@@ -420,8 +420,7 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
         else:
             raise Exception('Unknown storage client')
     except Exception as e:
-        # print(f"Error deleting folder '{folder_to_delete}': {str(e)}")
-        pass
+        print(f"Error deleting folder '{folder_to_delete}': {str(e)}")
     finally:
         storage_client = None
 
