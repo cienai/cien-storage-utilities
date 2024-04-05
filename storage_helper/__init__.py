@@ -1,12 +1,14 @@
 import boto3
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobServiceClient, ContainerClient, ContainerSasPermissions, generate_container_sas
+from azure.core.exceptions import ResourceExistsError
 
 from urllib.parse import urlparse
 import json
 from typing import Union
 import time
 import os
-from typing import Tuple
+from typing import Tuple, Optional
+from datetime import datetime, timedelta
 
 """
 Connections
@@ -84,9 +86,10 @@ def parse_wasb_url(wasb_url):
     return clean_storage_account_name, container_name, path_and_filename
 
 
-def get_storage_client(conn: Union[str, dict]):
+def get_credentials(conn: Union[str, dict]) -> Tuple[str, Optional[str]]:
     """
-    Returns an S3 client object
+    Returns credentials needed to initialize storage client
+    tuple of key, secret
     """
     conn = safe_conn(conn)
     uri = conn['BUCKET_URI']
@@ -95,9 +98,8 @@ def get_storage_client(conn: Union[str, dict]):
     if scheme == 's3':
         aws_access_key_id = conn['AWS_ACCESS_KEY_ID']
         aws_secret_access_key = conn['AWS_SECRET_ACCESS_KEY']
-        return boto3.client('s3',
-                            aws_access_key_id=aws_access_key_id,
-                            aws_secret_access_key=aws_secret_access_key)
+        return aws_access_key_id, aws_secret_access_key
+
     if scheme == 'gs':
         raise Exception('Google Cloud Storage not supported')
     if scheme == 'wasbs':
@@ -107,11 +109,28 @@ def get_storage_client(conn: Union[str, dict]):
             account_key = conn['AZURE_STORAGE_ACCESS_KEY']
         elif 'AZURE_STORAGE_SAS_TOKEN' in conn:
             account_key = conn['AZURE_STORAGE_SAS_TOKEN']
+
+        return account_key, None
+
+
+def get_storage_client(conn: Union[str, dict]):
+    """
+    Returns an S3 client object
+    """
+    conn = safe_conn(conn)
+    uri = conn['BUCKET_URI']
+    _, _, scheme = parse_cloud_storage_uri(uri)
+
+    if scheme == 's3':
+        aws_access_key_id, aws_secret_access_key = get_credentials(conn)
+        return boto3.client('s3', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
+    if scheme == 'gs':
+        raise Exception('Google Cloud Storage not supported')
+    if scheme == 'wasbs':
+        # check if conn contains AZURE_STORAGE_ACCESS_KEY
+        account_key, _ = get_credentials(conn)
         account_name, _, _ = parse_wasb_url(uri)
-        return BlobServiceClient(
-            account_url=f"https://{account_name}.blob.core.windows.net",
-            credential=account_key
-        )
+        return BlobServiceClient(account_url=f"https://{account_name}.blob.core.windows.net", credential=account_key)
 
 
 def get_storage_client_type(conn: Union[str, dict]) -> str:
@@ -364,7 +383,6 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
             folder_to_delete = folder_to_delete + '/'
 
         full_uri = safe_uri(conn, folder_to_delete)
-        # parse out the bucket and the new prefix
 
         storage_type = get_storage_client_type(conn)
         # handle the aws case
@@ -382,20 +400,27 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
             # print(f'[storage_helper.delete_folder(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
             container_client = storage_client.get_container_client(container_name)
             # List blobs with the specified prefix
-            blob_list = container_client.walk_blobs(name_starts_with=real_key)
-
+            blob_list = container_client.list_blobs(name_starts_with=real_key)
             # Delete each blob with the specified prefix
             for blob in blob_list:
-                container_client.get_blob_client(blob.name).delete_blob()
-            # make sure the folder is also deleted
-            folder_name = real_key.rstrip('/')
-            container_client.get_blob_client(folder_name).delete_blob()
+                try:
+                    container_client.delete_blob(blob.name, delete_snapshots='include')
+                except:
+                    pass
+
+            # do the same again to delete empty folders
+            blob_list = container_client.list_blobs(name_starts_with=real_key)
+            for blob in blob_list:
+                try:
+                    container_client.delete_blob(blob.name)
+                except:
+                    pass
+
         # handle the google case (not implemented yet)
         else:
             raise Exception('Unknown storage client')
-    except Exception:
-        # print(f"Error deleting folder '{folder_to_delete}': {str(e)}")
-        pass
+    except Exception as e:
+        print(f"Error deleting folder '{folder_to_delete}': {str(e)}")
     finally:
         storage_client = None
 
@@ -652,3 +677,52 @@ def copy_folder_from_local(conn: Union[str, dict], local_folder_path: str, folde
     # handle the google case (not implemented yet)
     else:
         raise Exception('Unknown storage client')
+
+
+def create_container(conn: Union[str, dict], container_name: str) -> str:
+    """
+    Creates a new container with container_name in the storage account and returns SAS token.
+    Raises Exception if container with container_name already exists
+    """
+    conn = safe_conn(conn)
+    storage_client = get_storage_client(conn)
+    storage_type = get_storage_client_type(conn)
+
+    if storage_type != 'azure':
+        raise Exception(f'Storage type "{storage_type}" for "create_container" not yet supported')
+
+    try:
+        storage_client.create_container(container_name)
+
+        uri = conn['BUCKET_URI']
+        storage_account, _, _ = parse_wasb_url(uri)
+        sas_token = generate_container_access_token(conn, container_name)
+        return {
+            'BUCKET_URI': f"wasbs://{storage_account}.blob.core.windows.net/{container_name}",
+            'AZURE_STORAGE_SAS_TOKEN': sas_token
+        }
+    except ResourceExistsError:
+        raise Exception(f'Container "{container_name}" already exists')
+
+
+def generate_container_access_token(conn: Union[str, dict], container_name: str, expiry: datetime = None) -> str:
+    """
+    Generates SAS token for container_name and optional expiration date. One year from now if "expiry" not provided.
+    """
+    conn = safe_conn(conn)
+    storage_type = get_storage_client_type(conn)
+
+    if storage_type != 'azure':
+        raise Exception(f'Storage type "{storage_type}" for "generate_access_token" not yet supported')
+
+    account_key, _ = get_credentials(conn)
+    full_uri = safe_uri(conn, "")
+    account_name, _, _ = parse_wasb_url(full_uri)
+    return generate_container_sas(
+        account_name,
+        container_name,
+        account_key,
+        permission=ContainerSasPermissions(read=True, write=True, delete=True, list=True),
+        expiry=expiry or datetime.now() + timedelta(days=365),
+        start=datetime.now()
+    )
