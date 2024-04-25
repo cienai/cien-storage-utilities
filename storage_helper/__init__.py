@@ -679,7 +679,7 @@ def copy_folder_from_local(conn: Union[str, dict], local_folder_path: str, folde
         raise Exception('Unknown storage client')
 
 
-def create_container(conn: Union[str, dict], container_name: str) -> str:
+def create_container(conn: Union[str, dict], container_name: str) -> dict:
     """
     Creates a new container with container_name in the storage account and returns SAS token.
     Raises Exception if container with container_name already exists
@@ -696,7 +696,7 @@ def create_container(conn: Union[str, dict], container_name: str) -> str:
 
         uri = conn['BUCKET_URI']
         storage_account, _, _ = parse_wasb_url(uri)
-        sas_token = generate_container_access_token(conn, container_name)
+        sas_token = generate_container_access_token(conn)
         return {
             'BUCKET_URI': f"wasbs://{storage_account}.blob.core.windows.net/{container_name}",
             'AZURE_STORAGE_SAS_TOKEN': sas_token
@@ -705,7 +705,7 @@ def create_container(conn: Union[str, dict], container_name: str) -> str:
         raise Exception(f'Container "{container_name}" already exists')
 
 
-def generate_container_access_token(conn: Union[str, dict], container_name: str, expiry: datetime = None) -> str:
+def generate_container_access_token(conn: Union[str, dict], expiry: datetime = None) -> str:
     """
     Generates SAS token for container_name and optional expiration date. One year from now if "expiry" not provided.
     """
@@ -717,7 +717,7 @@ def generate_container_access_token(conn: Union[str, dict], container_name: str,
 
     account_key, _ = get_credentials(conn)
     full_uri = safe_uri(conn, "")
-    account_name, _, _ = parse_wasb_url(full_uri)
+    account_name, container_name, _ = parse_wasb_url(full_uri)
     return generate_container_sas(
         account_name,
         container_name,
