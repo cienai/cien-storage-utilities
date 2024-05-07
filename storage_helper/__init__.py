@@ -9,7 +9,6 @@ import time
 import os
 from typing import Tuple, Optional
 from datetime import datetime, timedelta
-import glob
 
 """
 Connections
@@ -618,19 +617,16 @@ def copy_folder_to_local(conn: Union[str, dict], folder_key: str, local_folder_p
             real_folder_key = real_folder_key + '/'
         # print(f'[storage_helper.copy_folder_to_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
         container_client = storage_client.get_container_client(container_name)
-        blob_list = container_client.list_blobs(name_starts_with=real_folder_key)
+        blob_list = container_client.walk_blobs(name_starts_with=real_folder_key)
         for blob in blob_list:
             blob_key = blob.name
-            _, ext = os.path.splitext(blob_key)
-            if not ext:
-                continue
-
-            local_file_path = local_folder_path + blob_key
-            os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
-            blob_client = container_client.get_blob_client(blob_key)
-            with open(local_file_path, "wb") as my_blob:
-                blob_data = blob_client.download_blob()
-                blob_data.readinto(my_blob)
+            filename = os.path.basename(blob_key)
+            if len(filename) > 0:
+                local_file_path = f"{local_folder_path}/{filename}"
+                blob_client = container_client.get_blob_client(blob_key)
+                with open(local_file_path, "wb") as my_blob:
+                    blob_data = blob_client.download_blob()
+                    blob_data.readinto(my_blob)
     # handle the google case (not implemented yet)
     else:
         raise Exception('Unknown storage client')
@@ -669,12 +665,15 @@ def copy_folder_from_local(conn: Union[str, dict], local_folder_path: str, folde
             real_folder_key = real_folder_key + '/'
         # print(f'[storage_helper.copy_folder_from_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
         container_client = storage_client.get_container_client(container_name)
-        for file in glob.glob(local_folder_path + "**/*.*", recursive=True):
-            key = file.replace(local_folder_path, '')
-            print(f"file: {file} -> {key}")
-            blob_client = container_client.get_blob_client(key)
-            with open(file, "rb") as data:
-                blob_client.upload_blob(data, overwrite=True)
+        for root, dirs, files in os.walk(local_folder_path):
+            for file in files:
+                if len(file) > 0:
+                    local_file_path = os.path.join(root, file)
+                    key = f"{real_folder_key}{file}"
+                    # print(f"file: {file}, key: {key}")
+                    blob_client = container_client.get_blob_client(key)
+                    with open(local_file_path, "rb") as data:
+                        blob_client.upload_blob(data, overwrite=True)
     # handle the google case (not implemented yet)
     else:
         raise Exception('Unknown storage client')
