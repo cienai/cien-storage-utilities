@@ -625,7 +625,8 @@ def copy_folder_to_local(conn: Union[str, dict], folder_key: str, local_folder_p
             if not ext:
                 continue
 
-            local_file_path = local_folder_path + blob_key
+            local_file_path = local_folder_path + blob_key.replace(real_folder_key, '')
+            print(f'Downloading: {blob_key} -> {local_file_path}')
             os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
             blob_client = container_client.get_blob_client(blob_key)
             with open(local_file_path, "wb") as my_blob:
@@ -670,8 +671,8 @@ def copy_folder_from_local(conn: Union[str, dict], local_folder_path: str, folde
         # print(f'[storage_helper.copy_folder_from_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
         container_client = storage_client.get_container_client(container_name)
         for file in glob.glob(local_folder_path + "**/*.*", recursive=True):
-            key = file.replace(local_folder_path, '')
-            print(f"file: {file} -> {key}")
+            key = file.replace(local_folder_path, f'{folder_key}/')
+            print(f"Uploading: {file} -> {key}")
             blob_client = container_client.get_blob_client(key)
             with open(file, "rb") as data:
                 blob_client.upload_blob(data, overwrite=True)
