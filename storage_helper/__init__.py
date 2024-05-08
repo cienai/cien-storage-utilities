@@ -1,6 +1,6 @@
-import boto3
-from azure.storage.blob import BlobServiceClient, ContainerClient, ContainerSasPermissions, generate_container_sas
-from azure.core.exceptions import ResourceExistsError
+import boto3  # type: ignore
+from azure.storage.blob import BlobServiceClient, ContainerSasPermissions, generate_container_sas  # type: ignore
+from azure.core.exceptions import ResourceExistsError  # type: ignore
 
 from urllib.parse import urlparse
 import json
@@ -336,7 +336,7 @@ def read_file(conn: Union[str, dict], key: str) -> Union[str, bytes]:
         else:
             raise Exception('Unknown storage client')
     except Exception as e:  # noqa
-        print(f"[storage_client] Error reading file '{key}': {str(e)}")
+        # print(f"[storage_client] Error reading file '{key}': {str(e)}")
         return None
     finally:
         storage_client = None
@@ -367,7 +367,7 @@ def delete_file(conn: Union[str, dict], key: str) -> None:
         # handle the google case (not implemented yet)
         else:
             raise Exception('Unknown storage client')
-    except Exception as e:  # noqa
+    except Exception:  # noqa
         pass
     storage_client = None
 
@@ -405,7 +405,7 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
             for blob in blob_list:
                 try:
                     container_client.delete_blob(blob.name, delete_snapshots='include')
-                except:
+                except Exception:
                     pass
 
             # do the same again to delete empty folders
@@ -413,7 +413,7 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
             for blob in blob_list:
                 try:
                     container_client.delete_blob(blob.name)
-                except:
+                except Exception:
                     pass
 
         # handle the google case (not implemented yet)
