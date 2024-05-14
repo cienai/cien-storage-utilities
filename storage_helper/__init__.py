@@ -10,6 +10,18 @@ import os
 from typing import Tuple, Optional
 from datetime import datetime, timedelta
 
+# disable annoying logging
+import logging
+
+# Set the logging level for all azure-storage-* libraries
+logger = logging.getLogger('azure.storage')
+logger.setLevel(logging.INFO)
+
+# Set the logging level for all azure-* libraries
+logger = logging.getLogger('azure')
+logger.setLevel(logging.ERROR)
+
+
 """
 Connections
 
