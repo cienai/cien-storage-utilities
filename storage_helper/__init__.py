@@ -783,7 +783,7 @@ def copy_folder_from_local_v2(conn: Union[str, dict], local_folder_path: str, fo
         # print(f'[storage_helper.copy_folder_from_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
         container_client = storage_client.get_container_client(container_name)
         for file in glob.glob(local_folder_path + "**/*.*", recursive=True):
-            key = file.replace(local_folder_path, f'{folder_key}/')
+            key = file.replace(local_folder_path, f'{real_folder_key}/').replace('//', '/')
             print(f"Uploading: {file} -> {key}")
             blob_client = container_client.get_blob_client(key)
             with open(file, "rb") as data:
