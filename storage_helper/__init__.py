@@ -742,7 +742,7 @@ def copy_folder_to_local_v2(conn: Union[str, dict], folder_key: str, local_folde
             os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
             blob_client = container_client.get_blob_client(blob_key)
             with open(local_file_path, "wb") as my_blob:
-                blob_data = blob_client.download_bloboffset=None, length=None, timeout=300)
+                blob_data = blob_client.download_blob(offset=None, length=None, timeout=300)
                 blob_data.readinto(my_blob)
     # handle the google case (not implemented yet)
     else:
