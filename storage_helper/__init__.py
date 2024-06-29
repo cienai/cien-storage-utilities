@@ -9,6 +9,7 @@ import time
 import os
 from typing import Tuple, Optional
 from datetime import datetime, timedelta
+import glob
 
 # disable annoying logging
 import logging
@@ -696,6 +697,107 @@ def copy_folder_from_local(conn: Union[str, dict], local_folder_path: str, folde
                     blob_client = container_client.get_blob_client(key)
                     with open(local_file_path, "rb") as data:
                         blob_client.upload_blob(data, overwrite=True)
+    # handle the google case (not implemented yet)
+    else:
+        raise Exception('Unknown storage client')
+
+
+def copy_folder_to_local_v2(conn: Union[str, dict], folder_key: str, local_folder_path: str) -> None:
+    """
+    Copies a folder from the cloud storage to the local file system
+    """
+    conn = safe_conn(conn)
+    storage_client = get_storage_client(conn)
+    full_uri = safe_uri(conn, folder_key)
+
+    # ensure that local_folder_path ends with a '/'
+    if not local_folder_path.endswith('/'):
+        local_folder_path = local_folder_path + '/'
+    # ensure that local_folder_path exists
+    if not os.path.exists(local_folder_path):
+        os.makedirs(local_folder_path)
+
+    storage_type = get_storage_client_type(conn)
+    # handle the aws case
+    if storage_type == 'aws':
+        bucket, real_folder_key, _ = parse_cloud_storage_uri(full_uri)
+        # ensure that folder_key ends with a '/'
+        if not real_folder_key.endswith('/'):
+            real_folder_key = real_folder_key + '/'
+        # print(f'[storage_helper.copy_folder_to_local(aws)] bucket: {bucket}, real_folder_key: {real_folder_key}')
+        objects_to_copy = storage_client.list_objects_v2(Bucket=bucket, Prefix=real_folder_key)
+        if 'Contents' in objects_to_copy:
+            for obj in objects_to_copy['Contents']:
+                obj_key = obj['Key']
+                filename = os.path.basename(obj_key)
+                local_file_path = f"{local_folder_path}/{filename}"
+                storage_client.download_file(bucket, obj_key, local_file_path)
+    # handle the azure case
+    elif storage_type == 'azure':
+        _, container_name, real_folder_key = parse_wasb_url(full_uri)
+        # ensure that folder_key ends with a '/'
+        if not real_folder_key.endswith('/'):
+            real_folder_key = real_folder_key + '/'
+        # print(f'[storage_helper.copy_folder_to_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
+        container_client = storage_client.get_container_client(container_name)
+        blob_list = container_client.list_blobs(name_starts_with=real_folder_key)
+        for blob in blob_list:
+            blob_key = blob.name
+            _, ext = os.path.splitext(blob_key)
+            if not ext:
+                continue
+
+            local_file_path = local_folder_path + blob_key.replace(real_folder_key, '')
+            print(f'Downloading: {blob_key} -> {local_file_path}')
+            os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
+            blob_client = container_client.get_blob_client(blob_key)
+            with open(local_file_path, "wb") as my_blob:
+                blob_data = blob_client.download_blob(offset=None, length=None, timeout=300)
+                blob_data.readinto(my_blob)
+    # handle the google case (not implemented yet)
+    else:
+        raise Exception('Unknown storage client')
+
+
+def copy_folder_from_local_v2(conn: Union[str, dict], local_folder_path: str, folder_key: str) -> None:
+    """
+    Copies a folder from the local file system to the cloud storage
+    """
+    conn = safe_conn(conn)
+    storage_client = get_storage_client(conn)
+    full_uri = safe_uri(conn, folder_key)
+    # ensure that local_folder_path ends with a '/'
+    if not local_folder_path.endswith('/'):
+        local_folder_path = local_folder_path + '/'
+
+    storage_type = get_storage_client_type(conn)
+    # handle the aws case
+    if storage_type == 'aws':
+        # parse out the bucket and the new prefix
+        bucket, real_folder_key, _ = parse_cloud_storage_uri(full_uri)
+        # ensure that folder_key ends with a '/'
+        if not real_folder_key.endswith('/'):
+            real_folder_key = real_folder_key + '/'
+        # print(f'[storage_helper.copy_folder_from_local(aws)] bucket: {bucket}, real_folder_key: {real_folder_key}')
+        for root, dirs, files in os.walk(local_folder_path):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+                key = f"{real_folder_key}{file}"
+                storage_client.upload_file(local_file_path, bucket, key)
+    # handle the azure case
+    elif storage_type == 'azure':
+        _, container_name, real_folder_key = parse_wasb_url(full_uri)
+        # ensure that folder_key ends with a '/'
+        if not real_folder_key.endswith('/'):
+            real_folder_key = real_folder_key + '/'
+        # print(f'[storage_helper.copy_folder_from_local(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_folder_key: {real_folder_key}')
+        container_client = storage_client.get_container_client(container_name)
+        for file in glob.glob(local_folder_path + "**/*.*", recursive=True):
+            key = file.replace(local_folder_path, f'{real_folder_key}/').replace('//', '/')
+            print(f"Uploading: {file} -> {key}")
+            blob_client = container_client.get_blob_client(key)
+            with open(file, "rb") as data:
+                blob_client.upload_blob(data, overwrite=True)
     # handle the google case (not implemented yet)
     else:
         raise Exception('Unknown storage client')
