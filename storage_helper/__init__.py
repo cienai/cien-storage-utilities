@@ -350,7 +350,7 @@ def read_file(conn: Union[str, dict], key: str) -> Union[str, bytes]:
             # print(f'[storage_helper.read_file(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
             container_client = storage_client.get_container_client(container_name)
             blob_client = container_client.get_blob_client(real_key)
-            data = blob_client.download_blob().readall()
+            data = blob_client.download_blob(offset=None, length=None, timeout=300).readall()
             if is_json_file(key) or is_csv_file(key) or is_txt_file(key):
                 if not is_compressed_file(key):
                     data = data.decode('utf-8')
@@ -569,7 +569,7 @@ def copy_file_to_local(conn: Union[str, dict], key: str, local_file_path: str) -
         container_client = storage_client.get_container_client(container_name)
         blob_client = container_client.get_blob_client(real_key)
         with open(local_file_path, "wb") as my_blob:
-            blob_data = blob_client.download_blob()
+            blob_data = blob_client.download_blob(offset=None, length=None, timeout=300)
             blob_data.readinto(my_blob)
     # handle the google case (not implemented yet)
     else:
@@ -648,7 +648,7 @@ def copy_folder_to_local(conn: Union[str, dict], folder_key: str, local_folder_p
                 local_file_path = f"{local_folder_path}/{filename}"
                 blob_client = container_client.get_blob_client(blob_key)
                 with open(local_file_path, "wb") as my_blob:
-                    blob_data = blob_client.download_blob()
+                    blob_data = blob_client.download_blob(offset=None, length=None, timeout=300)
                     blob_data.readinto(my_blob)
     # handle the google case (not implemented yet)
     else:
