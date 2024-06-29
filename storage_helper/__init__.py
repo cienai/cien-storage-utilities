@@ -162,6 +162,14 @@ def get_storage_client_type(conn: Union[str, dict]) -> str:
     return None
 
 
+def is_compressed_file(file_name: str) -> bool:
+    """
+    Returns True if the file name ends with .gz
+    """
+    return file_name.lower().endswith('.gz') or file_name.lower().endswith('.gzip') or \
+        file_name.lower().endswith('.tar') or file_name.lower().endswith('.zip')
+
+
 def is_json_file(file_name: str) -> bool:
     """
     Returns True if the file name ends with .json
@@ -333,7 +341,8 @@ def read_file(conn: Union[str, dict], key: str) -> Union[str, bytes]:
             data = body.read()
             # convert to string if it's a json file
             if is_json_file(key) or is_csv_file(key) or is_txt_file(key):
-                data = data.decode('utf-8')
+                if not is_compressed_file(key):
+                    data = data.decode('utf-8')
             return data
         # handle the azure case
         elif storage_type == 'azure':
@@ -343,7 +352,8 @@ def read_file(conn: Union[str, dict], key: str) -> Union[str, bytes]:
             blob_client = container_client.get_blob_client(real_key)
             data = blob_client.download_blob(offset=None, length=None, timeout=300).readall()
             if is_json_file(key) or is_csv_file(key) or is_txt_file(key):
-                data = data.decode('utf-8')
+                if not is_compressed_file(key):
+                    data = data.decode('utf-8')
             return data
         # handle the google case (not implemented yet)
         else:
