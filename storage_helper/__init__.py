@@ -850,3 +850,47 @@ def generate_container_access_token(conn: Union[str, dict], container_name: str,
         expiry=expiry or datetime.now() + timedelta(days=365),
         start=datetime.now()
     )
+
+
+def move_file(src_key: str, dest_key: str, src_conn, dest_conn=None, delete_src_key=False):
+    """
+    Moves a file from src_key to dest_key
+    params:
+        src_key: source key
+        dest_key: destination key
+        src_conn: source connection
+        dest_conn: destination connection (set to src_conn if not provided)
+        delete_src_key: delete the source key after moving
+    """
+    src_conn = safe_conn(src_conn)
+    if dest_conn is None:
+        dest_conn = src_conn
+    else:
+        dest_conn = safe_conn(dest_conn)
+
+    src_full_uri = safe_uri(src_conn, src_key)
+    dest_full_uri = safe_uri(dest_conn, dest_key)
+
+    _, src_container_name, src_real_key = parse_wasb_url(src_full_uri)
+    src_storage_client = get_storage_client(src_conn)
+    src_container_client = src_storage_client.get_container_client(src_container_name)
+    src_blob_client = src_container_client.get_blob_client(src_real_key)
+
+    _, dest_container_name, dest_real_key = parse_wasb_url(dest_full_uri)
+    dest_storage_client = get_storage_client(dest_conn)
+    dest_container_client = dest_storage_client.get_container_client(dest_container_name)
+    dest_blob_client = dest_container_client.get_blob_client(dest_real_key)
+
+    # Start the copy operation
+    dest_blob_client.start_copy_from_url(src_blob_client.url)
+    # Wait for the copy to complete
+    properties = dest_blob_client.get_blob_properties()
+    while properties.copy.status == "pending":
+        properties = dest_blob_client.get_blob_properties()
+    # Check if the copy was successful
+    if properties.copy.status != "success":
+        raise Exception(f"Failed to copy blob from {src_key} to {dest_key}: {properties.copy.status}")
+
+    # Delete the source blob
+    if delete_src_key:
+        src_blob_client.delete_blob()
