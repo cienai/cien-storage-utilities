@@ -12,7 +12,8 @@ setup(
     ],
     install_requires=[
         "boto3",
-        "azure.storage.blob"],
+        "azure.storage.blob",
+        "azure-storage-file-datalake"],
     classifiers=[
         'Development Status :: 1 - Planning',
         'Intended Audience :: Science/Research',
