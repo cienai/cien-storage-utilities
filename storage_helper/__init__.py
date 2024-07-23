@@ -1,6 +1,7 @@
 import boto3  # type: ignore
 from azure.storage.blob import BlobServiceClient, ContainerSasPermissions, generate_container_sas  # type: ignore
 from azure.core.exceptions import ResourceExistsError  # type: ignore
+from azure.storage.filedatalake import DataLakeServiceClient  # type: ignore
 
 from urllib.parse import urlparse
 import json
@@ -894,3 +895,50 @@ def move_file(src_key: str, dest_key: str, src_conn, dest_conn=None, delete_src_
     # Delete the source blob
     if delete_src_key:
         src_blob_client.delete_blob()
+
+
+def rename_directory(conn, src_key, dest_key):
+    """
+    new version to rename a directory (only supports azure right now)
+    """
+    conn = safe_conn(conn)
+    storage_type = get_storage_client_type(conn)
+    if storage_type != 'azure':
+        raise Exception(f'Storage type "{storage_type}" for "rename_directory" not yet supported')
+
+    src_full_uri = safe_uri(conn, src_key)
+    dest_full_uri = safe_uri(conn, dest_key)
+
+    # get the container name using the standard wasbs safe uri
+    (storage_account, container_name, source_directory) = parse_wasb_url(src_full_uri)
+    (_, _, destination_directory) = parse_wasb_url(dest_full_uri)
+
+    account_url = f'https://{storage_account}.dfs.core.windows.net'
+    credential, _ = get_credentials(conn)
+
+    service_client = DataLakeServiceClient(account_url=account_url, credential=credential, api_version='2024-05-04')
+    file_system_client = service_client.get_file_system_client(container_name)
+    source_directory_client = file_system_client.get_directory_client(source_directory)
+    destination_path = f"{container_name}/{destination_directory}"
+    source_directory_client.rename_directory(destination_path)
+
+
+def delete_directory(conn, key):
+    """
+    new version to delete a director (only supports azure right now)
+    """
+    conn = safe_conn(conn)
+    storage_type = get_storage_client_type(conn)
+    if storage_type != 'azure':
+        raise Exception(f'Storage type "{storage_type}" for "delete_directory" not yet supported')
+
+    full_uri = safe_uri(conn, key)
+    # get the container name using the standard wasbs safe uri
+    (storage_account, container_name, directory_name) = parse_wasb_url(full_uri)
+    account_url = f'https://{storage_account}.dfs.core.windows.net'
+    credential, _ = get_credentials(conn)
+
+    service_client = DataLakeServiceClient(account_url=account_url, credential=credential, api_version='2024-05-04')
+    file_system_client = service_client.get_file_system_client(container_name)
+    directory_client = file_system_client.get_directory_client(directory_name)
+    directory_client.delete_directory()
