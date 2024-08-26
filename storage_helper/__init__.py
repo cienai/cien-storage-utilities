@@ -942,3 +942,24 @@ def delete_directory(conn, key):
     file_system_client = service_client.get_file_system_client(container_name)
     directory_client = file_system_client.get_directory_client(directory_name)
     directory_client.delete_directory()
+
+
+def create_directory(conn, key):
+    """
+    new version to create a directory (only supports azure right now)
+    """
+    conn = safe_conn(conn)
+    storage_type = get_storage_client_type(conn)
+    if storage_type != 'azure':
+        raise Exception(f'Storage type "{storage_type}" for "create_directory" not yet supported')
+
+    full_uri = safe_uri(conn, key)
+    # get the container name using the standard wasbs safe uri
+    (storage_account, container_name, directory_name) = parse_wasb_url(full_uri)
+    account_url = f'https://{storage_account}.dfs.core.windows.net'
+    credential, _ = get_credentials(conn)
+
+    service_client = DataLakeServiceClient(account_url=account_url, credential=credential, api_version='2024-05-04')
+    file_system_client = service_client.get_file_system_client(container_name)
+    directory_client = file_system_client.get_directory_client(directory_name)
+    directory_client.create_directory()
