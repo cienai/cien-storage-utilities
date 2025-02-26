@@ -1,4 +1,4 @@
-import boto3  # type: ignore
+# import boto3  # type: ignore
 from azure.storage.blob import BlobServiceClient, ContainerSasPermissions, generate_container_sas  # type: ignore
 from azure.core.exceptions import ResourceExistsError  # type: ignore
 from azure.storage.filedatalake import DataLakeServiceClient  # type: ignore
@@ -135,9 +135,9 @@ def get_storage_client(conn: Union[str, dict]):
     uri = conn['BUCKET_URI']
     _, _, scheme = parse_cloud_storage_uri(uri)
 
-    if scheme == 's3':
-        aws_access_key_id, aws_secret_access_key = get_credentials(conn)
-        return boto3.client('s3', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
+    # if scheme == 's3':
+    #     aws_access_key_id, aws_secret_access_key = get_credentials(conn)
+    #     return boto3.client('s3', aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
     if scheme == 'gs':
         raise Exception('Google Cloud Storage not supported')
     if scheme == 'wasbs':
