@@ -940,8 +940,8 @@ def delete_directory(conn, key):
 
     service_client = DataLakeServiceClient(account_url=account_url, credential=credential, api_version='2024-05-04')
     file_system_client = service_client.get_file_system_client(container_name)
-
-    if directory_name == '':
+    print('directory name: ', directory_name)
+    if not directory_name:
         print(f"Deleting container: {container_name}")
         file_system_client.delete_file_system()
     else:
