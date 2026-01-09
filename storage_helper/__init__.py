@@ -424,7 +424,7 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
             # print(f'[storage_helper.delete_folder(azure)] storage_account_name: {storage_account_name}, container_name: {container_name}, real_key: {real_key}')
             container_client = storage_client.get_container_client(container_name)
             # List blobs with the specified prefix
-            blob_list = container_client.list_blobs(name_starts_with=real_key)
+            blob_list = container_client.list_blobs(name_starts_with=real_key, include='deleted')
             # Delete each blob with the specified prefix
             for blob in blob_list:
                 try:
@@ -433,7 +433,7 @@ def delete_folder(conn: Union[str, dict], folder_to_delete: str) -> None:
                     pass
 
             # do the same again to delete empty folders
-            blob_list = container_client.list_blobs(name_starts_with=real_key)
+            blob_list = container_client.list_blobs(name_starts_with=real_key, include='deleted')
             for blob in blob_list:
                 try:
                     container_client.delete_blob(blob.name)
